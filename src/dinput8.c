@@ -12,12 +12,9 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include "MinHook.h"
-
-#if defined(_WIN64) && defined(__MINGW32__)
-typedef unsigned __int64 QWORD; // MinGW's NEXTRAWINPUTBLOCK uses it without defining it
-#endif
 
 static HMODULE realDll;
 static FILE *g_log;
@@ -78,11 +75,19 @@ static UINT WINAPI hkGetRawInputData(HRAWINPUT h, UINT cmd, LPVOID data, PUINT s
     return r;
 }
 
+// Next packet in a GetRawInputBuffer batch: packets are pointer-size aligned.
+// Same as the SDK's NEXTRAWINPUTBLOCK, which needs a QWORD type that neither
+// MSVC nor MinGW defines in C.
+static PRAWINPUT next_raw(PRAWINPUT p) {
+    ULONG_PTR a = (ULONG_PTR)p + p->header.dwSize;
+    return (PRAWINPUT)((a + sizeof(ULONG_PTR) - 1) & ~(ULONG_PTR)(sizeof(ULONG_PTR) - 1));
+}
+
 static UINT WINAPI hkGetRawInputBuffer(PRAWINPUT data, PUINT size, UINT hdr) {
     UINT r = oGetRawInputBuffer(data, size, hdr);
     if (data && r != (UINT)-1) {
         PRAWINPUT p = data;
-        for (UINT i = 0; i < r; i++) { flip_raw(p); p = NEXTRAWINPUTBLOCK(p); }
+        for (UINT i = 0; i < r; i++) { flip_raw(p); p = next_raw(p); }
     }
     return r;
 }
