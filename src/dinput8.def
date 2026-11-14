@@ -1,0 +1,9 @@
+; Exports matching the system dinput8.dll. All calls are forwarded to the real DLL.
+LIBRARY dinput8
+EXPORTS
+    DirectInput8Create
+    DllCanUnloadNow PRIVATE
+    DllGetClassObject PRIVATE
+    DllRegisterServer PRIVATE
+    DllUnregisterServer PRIVATE
+    GetdfDIJoystick
